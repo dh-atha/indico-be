@@ -1,0 +1,127 @@
+{
+	"info": {
+		"_postman_id": "b7e81e5d-3b28-46d5-b617-4a59269b6edc",
+		"name": "Indico Case Study",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "36825833"
+	},
+	"item": [
+		{
+			"name": "health",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{url}}/health"
+			},
+			"response": []
+		},
+		{
+			"name": "orders",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"product_id\":1,\"quantity\":1,\"buyer_id\":\"user-123\"}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{url}}/orders"
+			},
+			"response": []
+		},
+		{
+			"name": "Detail Order",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": "{{url}}/orders/102"
+			},
+			"response": []
+		},
+		{
+			"name": "jobs settlement",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"from\": \"2025-01-01\",\r\n    \"to\": \"2025-04-30\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": "{{url}}/jobs/settlement"
+			},
+			"response": []
+		},
+		{
+			"name": "job detail",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"from\": \"2025-01-01\",\r\n    \"to\": \"2025-02-28\"\r\n}"
+				},
+				"url": "{{url}}/jobs/job_20251005195407"
+			},
+			"response": []
+		},
+		{
+			"name": "downloads",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"from\": \"2025-01-01\",\r\n    \"to\": \"2025-02-28\"\r\n}"
+				},
+				"url": "{{url}}/downloads/job_20251005195407.csv"
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "url",
+			"value": "",
+			"type": "default"
+		}
+	]
+}

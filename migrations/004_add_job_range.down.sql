@@ -1,0 +1,7 @@
+BEGIN;
+
+ALTER TABLE jobs
+    DROP COLUMN IF EXISTS from_date,
+    DROP COLUMN IF EXISTS to_date;
+
+COMMIT;

@@ -1,0 +1,24 @@
+# VCS
+.git
+.gitignore
+
+# CI
+.github
+
+# Editors
+.vscode
+.idea
+
+# Go build
+bin/
+dist/
+coverage*
+
+# OS
+**/*.DS_Store
+
+# Node
+node_modules/
+
+# Temp
+tmp/
