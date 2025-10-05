@@ -72,7 +72,7 @@
 					"mode": "raw",
 					"raw": "{\r\n    \"from\": \"2025-01-01\",\r\n    \"to\": \"2025-02-28\"\r\n}"
 				},
-				"url": "{{url}}/jobs/job_20251005195407"
+				"url": "{{url}}/jobs/job_20251005212353"
 			},
 			"response": []
 		},
@@ -89,6 +89,15 @@
 					"raw": "{\r\n    \"from\": \"2025-01-01\",\r\n    \"to\": \"2025-02-28\"\r\n}"
 				},
 				"url": "{{url}}/downloads/job_20251005195407.csv"
+			},
+			"response": []
+		},
+		{
+			"name": "cancel jobs",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": "{{url}}/jobs/job_20251005212242/cancel"
 			},
 			"response": []
 		}

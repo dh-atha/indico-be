@@ -25,10 +25,11 @@ type jobService struct {
 	workers int
 
 	jobQueue chan string
+	outDir   string
 }
 
 func NewJobService(j repositories.JobRepository, t repositories.TransactionRepository, s repositories.SettlementRepository, workers int) JobService {
-	js := &jobService{jobs: j, txRepo: t, stRepo: s, workers: workers, jobQueue: make(chan string, 32)}
+	js := &jobService{jobs: j, txRepo: t, stRepo: s, workers: workers, jobQueue: make(chan string, 32), outDir: "./tmp/settlements"}
 	go js.loop()
 	return js
 }
@@ -59,6 +60,11 @@ func (s *jobService) checkCancel(ctx context.Context, id string) bool {
 	if cancelled {
 		log.Printf("Job %s: cancel requested", id)
 		_ = s.jobs.SetFailed(ctx, id, "job canceled")
+		outPath := filepath.Join(s.outDir, fmt.Sprintf("%s.csv", id))
+		err := os.Remove(outPath)
+		if err != nil {
+			log.Printf("Job %s: failed to remove output file %s: %v", id, outPath, err)
+		}
 		return true
 	}
 	return false
@@ -97,10 +103,8 @@ func (s *jobService) process(parentCtx context.Context, id string) error {
 		}
 		log.Printf("Job %s finished in %v", id, time.Since(start))
 	}()
-
-	outDir := "./tmp/settlements"
-	_ = os.MkdirAll(outDir, 0o755)
-	outPath := filepath.Join(outDir, fmt.Sprintf("%s.csv", id))
+	_ = os.MkdirAll(s.outDir, 0o755)
+	outPath := filepath.Join(s.outDir, fmt.Sprintf("%s.csv", id))
 	f, err := os.Create(outPath)
 	if err != nil {
 		_ = s.jobs.SetFailed(ctx, id, err.Error())
