@@ -54,8 +54,34 @@ func (s *jobService) StartSettlement(ctx context.Context, id string, from, to ti
 	return nil
 }
 
+func (s *jobService) checkCancel(ctx context.Context, id string) bool {
+	cancelled, _ := s.jobs.IsCancelRequested(ctx, id)
+	if cancelled {
+		log.Printf("Job %s: cancel requested", id)
+		_ = s.jobs.SetFailed(ctx, id, "job canceled")
+		return true
+	}
+	return false
+}
+
 // process performs the job: stream transactions in batches, fan-out to workers to aggregate, then write CSV, upsert settlements, and update job status
-func (s *jobService) process(ctx context.Context, id string) error {
+func (s *jobService) process(parentCtx context.Context, id string) error {
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+				if s.checkCancel(parentCtx, id) {
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+
 	log.Println("Processing job:", id)
 
 	if err := s.jobs.SetRunning(ctx, id); err != nil {
@@ -97,35 +123,40 @@ func (s *jobService) process(ctx context.Context, id string) error {
 	worker := func() {
 		defer wg.Done()
 		log.Println("Worker started")
-		for batch := range batches {
-			// Check cancel request between batches
-			if cancel, _ := s.jobs.IsCancelRequested(ctx, id); cancel {
+		for {
+			select {
+			case <-ctx.Done():
+				log.Println("Worker exiting due to cancel")
 				return
+			case batch, ok := <-batches:
+				if !ok {
+					return
+				}
+				local := make(map[key]struct {
+					gross, fee, net int64
+					count           int64
+				})
+				for _, t := range batch {
+					day := t.PaidAt.Format("2006-01-02")
+					k := key{merchant: t.MerchantID, day: day}
+					v := local[k]
+					v.gross += t.AmountCents
+					v.fee += t.FeeCents
+					v.net += t.AmountCents - t.FeeCents
+					v.count++
+					local[k] = v
+				}
+				mu.Lock()
+				for k, v := range local {
+					a := agg[k]
+					a.gross += v.gross
+					a.fee += v.fee
+					a.net += v.net
+					a.count += v.count
+					agg[k] = a
+				}
+				mu.Unlock()
 			}
-			local := make(map[key]struct {
-				gross, fee, net int64
-				count           int64
-			})
-			for _, t := range batch {
-				day := t.PaidAt.Format("2006-01-02")
-				k := key{merchant: t.MerchantID, day: day}
-				v := local[k]
-				v.gross += t.AmountCents
-				v.fee += t.FeeCents
-				v.net += t.AmountCents - t.FeeCents
-				v.count++
-				local[k] = v
-			}
-			mu.Lock()
-			for k, v := range local {
-				a := agg[k]
-				a.gross += v.gross
-				a.fee += v.fee
-				a.net += v.net
-				a.count += v.count
-				agg[k] = a
-			}
-			mu.Unlock()
 		}
 	}
 
@@ -150,8 +181,9 @@ func (s *jobService) process(ctx context.Context, id string) error {
 	go func() {
 		defer close(batches)
 		_ = s.txRepo.StreamBatches(ctx, from, to, 10000, func(ts []repositories.TransactionRow) error {
-			// Check cancel flag early
-			if cancel, _ := s.jobs.IsCancelRequested(ctx, id); cancel {
+			// Check cancel after every batch fetched
+			if s.checkCancel(parentCtx, id) {
+				cancel()
 				return context.Canceled
 			}
 			batches <- ts
@@ -164,6 +196,12 @@ func (s *jobService) process(ctx context.Context, id string) error {
 
 	// Write CSV and upsert settlements
 	for k, v := range agg {
+		if ctx.Err() != nil {
+			log.Printf("Job %s canceled before finalizing results", id)
+			_ = s.jobs.SetFailed(ctx, id, "job canceled")
+			return ctx.Err()
+		}
+
 		if err := w.Write([]string{k.merchant, k.day, fmt.Sprintf("%d", v.gross), fmt.Sprintf("%d", v.fee), fmt.Sprintf("%d", v.net), fmt.Sprintf("%d", v.count)}); err != nil {
 			_ = s.jobs.SetFailed(ctx, id, err.Error())
 			return err
