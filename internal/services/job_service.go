@@ -28,9 +28,6 @@ type jobService struct {
 }
 
 func NewJobService(j repositories.JobRepository, t repositories.TransactionRepository, s repositories.SettlementRepository, workers int) JobService {
-	if workers <= 0 {
-		workers = 100
-	}
 	js := &jobService{jobs: j, txRepo: t, stRepo: s, workers: workers, jobQueue: make(chan string, 32)}
 	go js.loop()
 	return js
